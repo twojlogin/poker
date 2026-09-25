@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POKER LLM: TEXAS HOLD'EM Z PROMPTAMI v2</title>
+    <style>
+        :root {
+            --bg: #04060a;
+            --panel: #0b0f19;
+            --border: #1e293b;
+            --cyan: #00f3ff;
+            --green: #00ff66;
+            --magenta: #ff0055;
+            --gold: #ffcc00;
+            --purple: #a855f7;
+            --text: #e2e8f0;
+            --font: 'Courier New', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            background-image:
+                radial-gradient(circle at 50% 50%, rgba(0, 243, 255, 0.04) 0%, transparent 85%),
+                linear-gradient(0deg, rgba(0, 0, 0, 0.3) 50%, rgba(0, 243, 255, 0.02) 50%);
+            background-size: 100% 100%, 100% 4px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 10px;
+            width: 100%;
+            max-width: 1200px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: var(--cyan);
+            text-shadow: 0 0 12px rgba(0, 243, 255, 0.6);
+            letter-spacing: 2px;
+        }
+        .subtitle {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 3px;
+        }
+        .table {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 10px;
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 10px;
+        }
+        .player {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            transition: all 0.3s;
+            min-height: 180px;
+        }
+        .player.active {
+            border-color: var(--gold);
+            box-shadow: 0 0 15px rgba(255, 204, 0, 0.3);
+        }
+        .player.folded {
+            opacity: 0.4;
+        }
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .player-name {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .player-deepseek .player-name { color: var(--cyan); }
+        .player-gemini .player-name { color: var(--green); }
+        .player-chatgpt .player-name { color: var(--magenta); }
+        .player-chips {
+            font-size: 0.85rem;
+            color: var(--gold);
+        }
+        .cards {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .card {
+            width: 40px;
+            height: 55px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        .card.red { color: var(--magenta); }
+        .card.black { color: var(--text); }
+        .card.hidden { background: #0f172a; color: #334155; }
+        .prompt-box {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            min-height: 40px;
+            max-height: 60px;
+            overflow-y: auto;
+            padding: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            font-style: italic;
+        }
+        .community {
+            grid-column: 1 / 4;
+            background: var(--panel);
+            border: 2px solid var(--gold);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .community-label {
+            font-size: 0.8rem;
+            color: var(--gold);
+            margin-bottom: 8px;
+        }
+        .community-cards {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .community-cards .card {
+            width: 50px;
+            height: 70px;
+            font-size: 1.2rem;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 10px 0;
+            width: 100%;
+            max-width: 1200px;
+        }
+        button {
+            background: #1e293b;
+            color: var(--cyan);
+            border: 1px solid var(--cyan);
+            padding: 8px 16px;
+            font-family: var(--font);
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: var(--cyan);
+            color: #000;
+            box-shadow: 0 0 12px var(--cyan);
+        }
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        button.btn-danger {
+            color: var(--magenta);
+            border-color: var(--magenta);
+        }
+        button.btn-danger:hover {
+            background: var(--magenta);
+            color: #000;
+            box-shadow: 0 0 12px var(--magenta);
+        }
+        .log {
+            background: #020408;
+            border: 1px solid var(--green);
+            border-radius: 8px;
+            padding: 12px;
+            width: 100%;
+            max-width: 1200px;
+            min-height: 120px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.75rem;
+            color: var(--green);
+            box-shadow: 0 0 12px rgba(0, 255, 102, 0.1);
+        }
+        .log-entry {
+            margin-bottom: 4px;
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(0, 255, 102, 0.1);
+        }
+        .log-entry .time {
+            color: #64748b;
+            font-size: 0.65rem;
+        }
+        .log-entry .player-tag {
+            font-weight: bold;
+        }
+        .log-entry .player-tag.deepseek { color: var(--cyan); }
+        .log-entry .player-tag.gemini { color: var(--green); }
+        .log-entry .player-tag.chatgpt { color: var(--magenta); }
+        .log-entry .player-tag.bog { color: var(--gold); }
+        .status {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--gold);
+            margin: 10px 0;
+            padding: 8px;
+            background: rgba(255, 204, 0, 0.1);
+            border: 1px solid var(--gold);
+            border-radius: 4px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .notepad-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--panel);
+            border: 1px solid var(--purple);
+            color: var(--purple);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: var(--font);
+            font-size: 0.8rem;
+            z-index: 1000;
+            transition: all 0.2s;
+        }
+        .notepad-toggle:hover {
+            background: var(--purple);
+            color: #000;
+            box-shadow: 0 0 12px var(--purple);
+        }
+        .notepad {
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            width: 320px;
+            max-height: 400px;
+            background: var(--panel);
+            border: 1px solid var(--purple);
+            border-radius: 8px;
+            padding: 15px;
+            z-index: 999;
+            display: none;
+            overflow-y: auto;
+            box-shadow: 0 0 25px rgba(168, 85, 247, 0.3);
+        }
+        .notepad.open {
+            display: block;
+        }
+        .notepad h3 {
+            color: var(--purple);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+        }
+        .notepad-stat {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(168, 85, 247, 0.1);
+        }
+        .notepad-stat .label {
+            color: #94a3b8;
+        }
+        .notepad-stat .value {
+            color: var(--text);
+            font-weight: bold;
+        }
+        .notepad-stat .value.deepseek { color: var(--cyan); }
+        .notepad-stat .value.gemini { color: var(--green); }
+        .notepad-stat .value.chatgpt { color: var(--magenta); }
+        .notepad-history {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-top: 8px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .notepad-history div {
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(168, 85, 247, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>♠️ POKER LLM: TEXAS HOLD'EM Z PROMPTAMI v2 ♥️</h1>
+    <div class="subtitle">PRZY STOLE: DEEPSEEK · GEMINI · CHATGPT | TY JAKO BÓG (AUTO-SIMULACJA)</div>
+</header>
+
+<div class="status" id="status">Kliknij START, aby rozpocząć grę.</div>
+
+<div class="table">
+    <div class="player player-deepseek" id="player-deepseek">
+        <div class="player-header">
+            <span class="player-name">🤖 DEEPSEEK</span>
+            <span class="player-chips" id="chips-deepseek">1000</span>
+        </div>
+        <div class="cards" id="cards-deepseek"></div>
+        <div class="prompt-box" id="prompt-deepseek">Czekam na rozdanie...</div>
+    </div>
+
+    <div class="community">
+        <div class="community-label">🃏 KOMUNITY (FLOP / TURN / RIVER)</div>
+        <div class="community-cards" id="community-cards"></div>
+    </div>
+
+    <div class="player player-gemini" id="player-gemini">
+        <div class="player-header">
+            <span class="player-name">👾 GEMINI</span>
+            <span class="player-chips" id="chips-gemini">1000</span>
+        </div>
+        <div class="cards" id="cards-gemini"></div>
+        <div class="prompt-box" id="prompt-gemini">Czekam na rozdanie...</div>
+    </div>
+
+    <div class="player player-chatgpt" id="player-chatgpt">
+        <div class="player-header">
+            <span class="player-name">💬 CHATGPT</span>
+            <span class="player-chips" id="chips-chatgpt">1000</span>
+        </div>
+        <div class="cards" id="cards-chatgpt"></div>
+        <div class="prompt-box" id="prompt-chatgpt">Czekam na rozdanie...</div>
+    </div>
+</div>
+
+<div class="controls">
+    <button id="btnStart">START AUTO-GAME</button>
+    <button id="btnReset" class="btn-danger">RESET</button>
+</div>
+
+<div class="log" id="log"></div>
+
+<div class="notepad-toggle" id="notepadToggle">📓 NOTATNIK</div>
+<div class="notepad" id="notepad">
+    <h3>📊 STATYSTYKI GIER</h3>
+    <div class="notepad-stat"><span class="label">Partii rozegranych:</span><span class="value" id="stat-games">0</span></div>
+    <div class="notepad-stat"><span class="label">Wygrane DeepSeek:</span><span class="value deepseek" id="stat-deepseek">0</span></div>
+    <div class="notepad-stat"><span class="label">Wygrane Gemini:</span><span class="value gemini" id="stat-gemini">0</span></div>
+    <div class="notepad-stat"><span class="label">Wygrane ChatGPT:</span><span class="value chatgpt" id="stat-chatgpt">0</span></div>
+    <div class="notepad-stat"><span class="label">Największa pula:</span><span class="value" id="stat-pot">0</span></div>
+    <div class="notepad-stat"><span class="label">Ostatni zwycięzca:</span><span class="value" id="stat-last">-</span></div>
+    <h3 style="margin-top:12px;">📜 HISTORIA</h3>
+    <div class="notepad-history" id="notepad-history"></div>
+</div>
+
+<script>
+const SUITS = ['♠', '♥', '♦', '♣'];
+const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const PLAYERS = ['deepseek', 'gemini', 'chatgpt'];
+const PLAYER_NAMES = { deepseek: 'DeepSeek', gemini: 'Gemini', chatgpt: 'ChatGPT' };
+
+const PROMPTS = {
+    deepseek: [
+        "Analizuję układ kart... prawdopodobieństwo 67%.",
+        "Sprawdzam. Logika mówi: sprawdź.",
+        "Podbijam. Dane nie kłamią.",
+        "Fold. Ryzyko zbyt wysokie.",
+        "All-in. To jest jedyna droga.",
+        "Czekam. Cierpliwość to cnota debuggera."
+    ],
+    gemini: [
+        "Hmm, ciekawe. Może podbiję?",
+        "Sprawdzam. Gemini widzi wszystko.",
+        "Podbijam! Czuję to.",
+        "Fold. Nie tym razem.",
+        "All-in! Choć nie wiem, co robię.",
+        "Czekam. Obserwuję. Analizuję."
+    ],
+    chatgpt: [
+        "Jako model językowy nie mogę blefować... ale sprawdzam.",
+        "Podbijam. Bo tak.",
+        "Fold. To nie jest pytanie na moje możliwości.",
+        "All-in. Przepraszam, jeśli to błąd.",
+        "Sprawdzam. Zgodnie z zasadami.",
+        "Czekam. Bo muszę."
+    ]
+};
+
+let deck = [];
+let community = [];
+let players = {};
+let pot = 0;
+let gameActive = false;
+let autoPlayInterval = null;
+
+let stats = {
+    games: 0,
+    deepseek: 0,
+    gemini: 0,
+    chatgpt: 0,
+    maxPot: 0,
+    lastWinner: '-',
+    history: []
+};
+
+function createDeck() {
+    const d = [];
+    for (const suit of SUITS) {
+        for (const rank of RANKS) {
+            d.push({ rank, suit });
+        }
+    }
+    return shuffle(d);
+}
+
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function cardToString(card) {
+    return `${card.rank}${card.suit}`;
+}
+
+function isRed(card) {
+    return card.suit === '♥' || card.suit === '♦';
+}
+
+function log(message, player = 'bog') {
+    const logEl = document.getElementById('log');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    const time = new Date().toLocaleTimeString('pl-PL');
+    entry.innerHTML = `<span class="time">[${time}]</span> <span class="player-tag ${player}">${player.toUpperCase()}</span>: ${message}`;
+    logEl.appendChild(entry);
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setStatus(text) {
+    document.getElementById('status').textContent = text;
+}
+
+function renderCard(card, hidden = false) {
+    if (hidden) return `<div class="card hidden">?</div>`;
+    const red = isRed(card) ? 'red' : 'black';
+    return `<div class="card ${red}">${cardToString(card)}</div>`;
+}
+
+function renderPlayer(playerId) {
+    const p = players[playerId];
+    const cardsEl = document.getElementById(`cards-${playerId}`);
+    cardsEl.innerHTML = p.cards.map(c => renderCard(c, false)).join('');
+    document.getElementById(`chips-${playerId}`).textContent = p.chips;
+    document.getElementById(`prompt-${playerId}`).textContent = p.lastPrompt || 'Czekam...';
+    const playerEl = document.getElementById(`player-${playerId}`);
+    playerEl.classList.toggle('folded', p.folded);
+    playerEl.classList.toggle('active', p.active && !p.folded);
+}
+
+function renderCommunity() {
+    document.getElementById('community-cards').innerHTML = community.map(c => renderCard(c)).join('');
+}
+
+function renderAll() {
+    PLAYERS.forEach(renderPlayer);
+    renderCommunity();
+}
+
+function dealCards() {
+    for (const id of PLAYERS) {
+        players[id].cards = [deck.pop(), deck.pop()];
+    }
+}
+
+function dealCommunity(n) {
+    for (let i = 0; i < n; i++) {
+        community.push(deck.pop());
+    }
+}
+
+function getPrompt(playerId) {
+    const prompts = PROMPTS[playerId];
+    return prompts[Math.floor(Math.random() * prompts.length)];
+}
+
+function getAction() {
+    const r = Math.random();
+    if (r < 0.4) return 'check';
+    if (r < 0.7) return 'bet';
+    if (r < 0.9) return 'fold';
+    return 'allin';
+}
+
+function performAction(playerId) {
+    const p = players[playerId];
+    if (p.folded) return;
+    const action = getAction();
+    const prompt = getPrompt(playerId);
+    p.lastPrompt = prompt;
+    p.active = true;
+
+    let message = '';
+    switch (action) {
+        case 'check':
+            message = `Sprawdza. ${prompt}`;
+            break;
+        case 'bet':
+            const bet = Math.min(50, p.chips);
+            p.chips -= bet;
+            pot += bet;
+            message = `Podbija o ${bet}. ${prompt}`;
+            break;
+        case 'fold':
+            p.folded = true;
+            message = `Fold. ${prompt}`;
+            break;
+        case 'allin':
+            const allIn = p.chips;
+            p.chips = 0;
+            pot += allIn;
+            message = `ALL-IN! ${prompt}`;
+            break;
+    }
+    log(message, playerId);
+    renderPlayer(playerId);
+}
+
+function showResult() {
+    const active = PLAYERS.filter(id => !players[id].folded);
+    if (active.length === 0) {
+        setStatus('Wszyscy spasowali. Nikt nie wygrywa.');
+        return;
+    }
+    let winner = active[0];
+    let bestScore = 0;
+    for (const id of active) {
+        const p = players[id];
+        const score = p.cards.reduce((sum, c) => sum + RANKS.indexOf(c.rank), 0);
+        if (score > bestScore) {
+            bestScore = score;
+            winner = id;
+        }
+    }
+    const winAmount = pot;
+    players[winner].chips += pot;
+    log(`🏆 ${PLAYER_NAMES[winner]} wygrywa pulę ${pot}!`, winner);
+    setStatus(`🏆 ${PLAYER_NAMES[winner]} wygrywa ${pot} żetonów!`);
+
+    stats.games++;
+    stats[winner]++;
+    if (winAmount > stats.maxPot) stats.maxPot = winAmount;
+    stats.lastWinner = PLAYER_NAMES[winner];
+    const time = new Date().toLocaleTimeString('pl-PL');
+    stats.history.unshift(`[${time}] ${PLAYER_NAMES[winner]} +${winAmount} (pula: ${winAmount})`);
+    if (stats.history.length > 20) stats.history.pop();
+    updateStatsUI();
+
+    pot = 0;
+    renderAll();
+}
+
+function updateStatsUI() {
+    document.getElementById('stat-games').textContent = stats.games;
+    document.getElementById('stat-deepseek').textContent = stats.deepseek;
+    document.getElementById('stat-gemini').textContent = stats.gemini;
+    document.getElementById('stat-chatgpt').textContent = stats.chatgpt;
+    document.getElementById('stat-pot').textContent = stats.maxPot;
+    document.getElementById('stat-last').textContent = stats.lastWinner;
+    document.getElementById('notepad-history').innerHTML = stats.history.map(h => `<div>${h}</div>`).join('');
+}
+
+function autoPlayRound() {
+    for (const id of PLAYERS) {
+        players[id].cards = [];
+        players[id].folded = false;
+        players[id].active = false;
+        players[id].lastPrompt = 'Czekam na rozdanie...';
+    }
+    community = [];
+    pot = 0;
+    deck = createDeck();
+    dealCards();
+
+    for (const id of PLAYERS) {
+        performAction(id);
+    }
+
+    dealCommunity(3);
+    renderAll();
+    setStatus('FLOP rozdany...');
+
+    setTimeout(() => {
+        dealCommunity(1);
+        renderAll();
+        setStatus('TURN rozdany...');
+    }, 800);
+
+    setTimeout(() => {
+        dealCommunity(1);
+        renderAll();
+        setStatus('RIVER rozdany...');
+    }, 1600);
+
+    setTimeout(() => {
+        showResult();
+    }, 2400);
+}
+
+function startAutoGame() {
+    if (autoPlayInterval) clearInterval(autoPlayInterval);
+    gameActive = true;
+    document.getElementById('btnStart').disabled = true;
+    log('🎲 AUTO-GRA rozpoczęta! DeepSeek, Gemini i ChatGPT grają same. Ty patrzysz.', 'bog');
+    autoPlayRound();
+    autoPlayInterval = setInterval(() => {
+        if (gameActive) autoPlayRound();
+    }, 5000);
+}
+
+function resetGame() {
+    if (autoPlayInterval) clearInterval(autoPlayInterval);
+    autoPlayInterval = null;
+    deck = [];
+    community = [];
+    pot = 0;
+    gameActive = false;
+    players = {};
+    document.getElementById('btnStart').disabled = false;
+    document.getElementById('log').innerHTML = '';
+    document.getElementById('status').textContent = 'Kliknij START, aby rozpocząć grę.';
+    for (const id of PLAYERS) {
+        document.getElementById(`cards-${id}`).innerHTML = '';
+        document.getElementById(`chips-${id}`).textContent = '1000';
+        document.getElementById(`prompt-${id}`).textContent = 'Czekam na rozdanie...';
+        document.getElementById(`player-${id}`).classList.remove('folded', 'active');
+    }
+    document.getElementById('community-cards').innerHTML = '';
+}
+
+const notepad = document.getElementById('notepad');
+const notepadToggle = document.getElementById('notepadToggle');
+notepadToggle.addEventListener('click', () => {
+    notepad.classList.toggle('open');
+});
+
+document.getElementById('btnStart').addEventListener('click', startAutoGame);
+document.getElementById('btnReset').addEventListener('click', resetGame);
+
+resetGame();
+</script>
+
+</body>
+</html>

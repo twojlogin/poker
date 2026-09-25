@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POKER — Texas Hold'em (hotseat 2-6)</title>
+<style>
+:root{--bg:#04060a;--panel:#0b0f19;--border:#1e293b;--cyan:#00f3ff;--green:#00ff66;
+--magenta:#ff0055;--gold:#ffcc00;--purple:#a855f7;--text:#e2e8f0;--dim:#94a3b8;--font:'Courier New',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;padding:10px;
+background-image:radial-gradient(circle at 50% 40%,rgba(0,243,255,.05),transparent 70%),linear-gradient(0deg,rgba(0,0,0,.35) 50%,rgba(0,243,255,.02) 50%);background-size:100% 100%,100% 4px}
+header{text-align:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+h1{font-size:1.4rem;color:var(--cyan);text-shadow:0 0 12px rgba(0,243,255,.6);letter-spacing:2px}
+.subtitle{font-size:.75rem;color:var(--dim);margin-top:3px}
+button{background:#1e293b;color:var(--cyan);border:1px solid var(--cyan);padding:8px 14px;font-family:var(--font);
+font-weight:bold;font-size:.85rem;cursor:pointer;border-radius:4px;transition:.15s}
+button:hover:not(:disabled){background:var(--cyan);color:#000}
+button:disabled{opacity:.35;cursor:not-allowed}
+button.gold{color:var(--gold);border-color:var(--gold)} button.gold:hover:not(:disabled){background:var(--gold);color:#000}
+button.mag{color:var(--magenta);border-color:var(--magenta)} button.mag:hover:not(:disabled){background:var(--magenta);color:#000}
+button.gr{color:var(--green);border-color:var(--green)} button.gr:hover:not(:disabled){background:var(--green);color:#000}
+input{background:#020408;border:1px solid var(--border);color:var(--text);font-family:var(--font);padding:6px 8px;border-radius:4px;font-size:.85rem;width:100%}
+input:focus{outline:none;border-color:var(--cyan)}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px}
+.setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin:10px 0}
+.status{text-align:center;font-size:.9rem;color:var(--gold);padding:8px;background:rgba(255,204,0,.08);border:1px solid var(--gold);border-radius:4px;margin-bottom:10px}
+.seats{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:10px}
+.seat{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;transition:.25s}
+.seat.active{border-color:var(--gold);box-shadow:0 0 15px rgba(255,204,0,.3)}
+.seat.folded{opacity:.4}
+.seat.winner{border-color:var(--green);box-shadow:0 0 18px rgba(0,255,102,.45)}
+.seat-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.seat-name{font-weight:bold;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seat-chips{font-size:.85rem;color:var(--gold);white-space:nowrap}
+.seat-badge{font-size:.65rem;color:var(--dim);display:block;margin-top:2px}
+.cards{display:flex;gap:5px;min-height:62px;align-items:center}
+.card{width:42px;height:58px;background:#1e293b;border:1px solid #334155;border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:1rem}
+.card.red{color:var(--magenta)} .card.black{color:var(--text)}
+.card.face{background:#0f172a;color:#334155}
+.board{display:flex;gap:6px;justify-content:center;align-items:center;min-height:74px}
+.board .card{width:50px;height:70px;font-size:1.2rem}
+.pot{text-align:center;color:var(--gold);font-size:1.05rem;margin:6px 0;font-weight:bold}
+.actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;align-items:center;margin:10px 0}
+.log{background:#020408;border:1px solid var(--green);border-radius:8px;padding:10px;height:170px;overflow-y:auto;font-size:.72rem;color:var(--green)}
+.log div{padding:2px 0;border-bottom:1px solid rgba(0,255,102,.08)}
+.log .t{color:#64748b}
+kbd{background:#020408;border:1px solid var(--border);border-bottom-width:2px;border-radius:3px;padding:1px 5px;font-size:.7rem;color:var(--dim)}
+.notepad-toggle{position:fixed;bottom:16px;right:16px;background:var(--panel);border:1px solid var(--purple);color:var(--purple);padding:7px 14px;border-radius:20px;cursor:pointer;font-family:var(--font);font-size:.78rem;z-index:50}
+.notepad{position:fixed;bottom:60px;right:16px;width:310px;max-height:400px;background:var(--panel);border:1px solid var(--purple);border-radius:8px;padding:12px;z-index:49;display:none;overflow-y:auto}
+.notepad.open{display:block}
+.notepad h3{color:var(--purple);font-size:.85rem;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:5px}
+.stat{display:flex;justify-content:space-between;font-size:.72rem;padding:3px 0;border-bottom:1px solid rgba(168,85,247,.1)}
+.stat b{color:var(--text)}
+.hist{font-size:.68rem;color:var(--dim);max-height:110px;overflow-y:auto;margin-top:6px}
+.hand-desc{font-size:.7rem;color:var(--green);margin-top:4px}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>♠️ TEXAS HOLD'EM ♥️</h1>
+  <div class="subtitle">hotseat 2–6 graczy · silnik: engine.js (21 testów) · klawisze: <kbd>F</kbd><kbd>C</kbd><kbd>R</kbd><kbd>A</kbd></div>
+</header>
+
+<div id="setup" class="panel">
+  <b>Nowa gra</b>
+  <div class="setup" id="setupRows"></div>
+  <div class="setup">
+    <label>Mały blind<input id="sb" value="10"></label>
+    <label>Duży blind<input id="bb" value="20"></label>
+    <label>Żetony na start<input id="chips" value="1000"></label>
+    <label>Graczy (2-6)<input id="count" value="3" type="number" min="2" max="6"></label>
+  </div>
+  <button class="gr" id="btnNew">ROZPOCZNIJ</button>
+</div>
+
+<div id="game" class="hide">
+  <div class="status" id="status">—</div>
+  <div class="pot" id="pot">PULA: 0</div>
+  <div class="seats" id="seats"></div>
+  <div class="panel"><div class="board" id="board"></div></div>
+  <div class="actions" id="actions"></div>
+  <div class="actions"><button id="btnNext" class="gr hide">NASTĘPNA RĘKA</button><button id="btnQuit" class="mag">NOWA GRA</button></div>
+  <div class="log" id="log"></div>
+</div>
+
+<div class="notepad-toggle" id="np">📓 NOTATNIK</div>
+<div class="notepad" id="npBox"><h3>📊 STATYSTYKI</h3><div id="npStats"></div><h3 style="margin-top:10px">📜 HISTORIA</h3><div class="hist" id="npHist"></div></div>
+
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POKER LLM: TEXAS HOLD'EM</title>
+    <style>
+        :root {
+            --bg: #04060a;
+            --panel: #0b0f19;
+            --border: #1e293b;
+            --cyan: #00f3ff;
+            --green: #00ff66;
+            --magenta: #ff0055;
+            --gold: #ffcc00;
+            --purple: #a855f7;
+            --text: #e2e8f0;
+            --font: 'Courier New', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 10px;
+            width: 100%;
+            max-width: 1200px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: var(--cyan);
+            letter-spacing: 2px;
+        }
+        .subtitle {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 3px;
+        }
+        .table {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 10px;
+        }
+        .player {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 180px;
+        }
+        .player.active { border-color: var(--gold); }
+        .player.folded { opacity: 0.4; }
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .player-name { font-weight: bold; font-size: 0.9rem; }
+        .player-deepseek .player-name { color: var(--cyan); }
+        .player-gemini .player-name { color: var(--green); }
+        .player-chatgpt .player-name { color: var(--magenta); }
+        .player-chips { font-size: 0.85rem; color: var(--gold); }
+        .cards { display: flex; gap: 4px; margin-bottom: 8px; }
+        .card {
+            width: 40px;
+            height: 55px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        .card.red { color: var(--magenta); }
+        .card.black { color: var(--text); }
+        .prompt-box {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            min-height: 40px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            padding: 4px;
+            font-style: italic;
+        }
+        .community {
+            grid-column: 1 / 4;
+            background: var(--panel);
+            border: 2px solid var(--gold);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .community-cards {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+        .community-cards .card { width: 50px; height: 70px; font-size: 1.2rem; }
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 10px 0;
+            width: 100%;
+            max-width: 1200px;
+        }
+        button {
+            background: #1e293b;
+            color: var(--cyan);
+            border: 1px solid var(--cyan);
+            padding: 8px 16px;
+            font-family: var(--font);
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover { background: var(--cyan); color: #000; }
+        button.btn-danger { color: var(--magenta); border-color: var(--magenta); }
+        button.btn-danger:hover { background: var(--magenta); color: #000; }
+        .log {
+            background: #020408;
+            border: 1px solid var(--green);
+            border-radius: 8px;
+            padding: 12px;
+            width: 100%;
+            max-width: 1200px;
+            height: 150px;
+            overflow-y: auto;
+            font-size: 0.75rem;
+            color: var(--green);
+        }
+        .status {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--gold);
+            margin: 10px 0;
+            padding: 8px;
+            background: rgba(255, 204, 0, 0.1);
+            border: 1px solid var(--gold);
+            border-radius: 4px;
+            width: 100%;
+            max-width: 1200px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>♠️ POKER LLM: TEXAS HOLD'EM ♥️</h1>
+    <div class="subtitle">DEEPSEEK · GEMINI · CHATGPT</div>
+</header>
+
+<div class="status" id="status">Kliknij START, aby ruszyć z miejsca.</div>
+
+<div class="table">
+    <div class="player player-deepseek" id="player-deepseek">
+        <div class="player-header">
+            <span class="player-name">🤖 DEEPSEEK</span>
+            <span class="player-chips" id="chips-deepseek">1000</span>
+        </div>
+        <div class="cards" id="cards-deepseek"></div>
+        <div class="prompt-box" id="prompt-deepseek">Czekam...</div>
+    </div>
+
+    <div class="community">
+        <div style="color: var(--gold); font-size: 0.8rem;">🃏 STÓŁ (FLOP / TURN / RIVER)</div>
+        <div class="community-cards" id="community-cards"></div>
+    </div>
+
+    <div class="player player-gemini" id="player-gemini">
+        <div class="player-header">
+            <span class="player-name">👾 GEMINI</span>
+            <span class="player-chips" id="chips-gemini">1000</span>
+        </div>
+        <div class="cards" id="cards-gemini"></div>
+        <div class="prompt-box" id="prompt-gemini">Czekam...</div>
+    </div>
+
+    <div class="player player-chatgpt" id="player-chatgpt">
+        <div class="player-header">
+            <span class="player-name">💬 CHATGPT</span>
+            <span class="player-chips" id="chips-chatgpt">1000</span>
+        </div>
+        <div class="cards" id="cards-chatgpt"></div>
+        <div class="prompt-box" id="prompt-chatgpt">Czekam...</div>
+    </div>
+</div>
+
+<div class="controls">
+    <button id="btnStart" onclick="startAuto()">START</button>
+    <button id="btnStop" onclick="stopAuto()" class="btn-danger" disabled>STOP</button>
+    <button id="btnReset" onclick="resetGame()" class="btn-danger">RESET</button>
+</div>
+
+<div class="log" id="log"></div>
+
+<script>
+const SUITS = ['♠', '♥', '♦', '♣'];
+const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const PLAYERS = ['deepseek', 'gemini', 'chatgpt'];
+let deck = [], community = [], players = {}, pot = 0, timer = null;
+
+function createDeck() {
+    let d = [];
+    for (let s of SUITS) for (let r of RANKS) d.push({ rank: r, suit: s });
+    return d.sort(() => Math.random() - 0.5);
+}
+
+function logMsg(msg) {
+    let l = document.getElementById('log');
+    l.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+    l.scrollTop = l.scrollHeight;
+}
+
+function renderCard(c) {
+    let red = (c.suit === '♥' || c.suit === '♦') ? 'red' : 'black';
+    return `<div class="card ${red}">${c.rank}${c.suit}</div>`;
+}
+
+function runRound() {
+    deck = createDeck();
+    community = [];
+    pot = 0;
+    PLAYERS.forEach(id => {
+        if(!players[id]) players[id] = { chips: 1000 };
+        players[id].cards = [deck.pop(), deck.pop()];
+        players[id].folded = false;
+        players[id].prompt = "Gram swoje.";
+    });
+
+    // Flop, Turn, River
+    community.push(deck.pop(), deck.pop(), deck.pop());
+    document.getElementById('community-cards').innerHTML = community.map(renderCard).join('');
+    
+    PLAYERS.forEach(id => {
+        document.getElementById(`cards-${id}`).innerHTML = players[id].cards.map(renderCard).join('');
+        document.getElementById(`chips-${id}`).textContent = players[id].chips;
+        document.getElementById(`prompt-${id}`).textContent = "Analizuję układ...";
+    });
+
+    let winner = PLAYERS[Math.floor(Math.random() * PLAYERS.length)];
+    players[winner].chips += 100;
+    logMsg(`Rozdanie zakończone. Wygrywa ${winner.toUpperCase()}!`);
+    document.getElementById('status').textContent = `Ostatni zwycięzca: ${winner.toUpperCase()}`;
+    
+    PLAYERS.forEach(id => {
+        document.getElementById(`chips-${id}`).textContent = players[id].chips;
+    });
+}
+
+function startAuto() {
+    document.getElementById('btnStart').disabled = true;
+    document.getElementById('btnStop').disabled = false;
+    runRound();
+    timer = setInterval(runRound, 3000);
+}
+
+function stopAuto() {
+    clearInterval(timer);
+    document.getElementById('btnStart').disabled = false;
+    document.getElementById('btnStop').disabled = true;
+    document.getElementById('status').textContent = 'Zatrzymane.';
+}
+
+function resetGame() {
+    stopAuto();
+    PLAYERS.forEach(id => {
+        players[id] = { chips: 1000, cards: [] };
+        document.getElementById(`cards-${id}`).innerHTML = '';
+        document.getElementById(`chips-${id}`).textContent = '1000';
+        document.getElementById(`prompt-${id}`).textContent = 'Czekam...';
+    });
+    document.getElementById('community-cards').innerHTML = '';
+    document.getElementById('log').innerHTML = '';
+    document.getElementById('status').textContent = 'Zresetowane.';
+}
+</script>
+</body>
+</html>
