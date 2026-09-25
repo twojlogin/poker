@@ -3,6 +3,24 @@
 Prosta, poprawna implementacja Texas Hold'em. Silnik gry jest oddzielony od UI
 i przetestowany: **21 testów, 0 błędów** (`node test.js`).
 
+## Skąd to się wzięło (uczciwie)
+
+Projekt powstał z kodu wygenerowanego przez modele AI (DeepSeek, Gemini) — to były
+pięć wersji gry w jednym HTML, z których najlepsza wypadła martwa po kliknięciu
+START i nie miała oceny układów (wygrywał największa suma rang kart).
+
+Co jest faktycznie moją robotą:
+- wybranie właściwej wersji i rozpoznanie, że logika nie działa,
+- **napisanie silnika od zera** (`engine.js`): ocena układów, wybór najlepszych
+  5 z 7 kart, blindy, rundy, side poty, all-in, blokada podbicia po short all-in,
+- **21 testów**, które to potwierdzają (w tym graniczne przypadki: wheel, remisy,
+  crash przy złej turze),
+- interfejs hotseat 2–6 graczy.
+
+Kod bazowy (CSS, motyw, układ stołu) pochodzi z wersji wygenerowanych przez AI
+i został przejrzany oraz poprawiony. To jest normalne dla projektu powstałego
+z pomocą AI — świadomie to opisuję, zamiast udawać, że wszystko pisałem ręcznie.
+
 ## Uruchomienie
 
 Otwórz `index.html` w przeglądarce (albo `python3 -m http.server` i wejdź na localhost).
