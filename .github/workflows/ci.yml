@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Jawne minimum uprawnien ( CodeQL: "Workflow does not contain permissions")
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Silnik i testy bez zależnosci zewnetrznych - node wystarczy
+      - name: Run tests
+        run: node test.js
